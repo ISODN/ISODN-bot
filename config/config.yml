@@ -1,0 +1,6 @@
+token: token.txt
+blacklist: blacklist.txt
+prefix: i.
+cogs:
+  - cogs.moderation
+  - cogs.core
