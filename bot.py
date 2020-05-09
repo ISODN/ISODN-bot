@@ -81,7 +81,7 @@ class ISODNBot(commands.Bot):
             return
 
         if isinstance(exception, commands.CheckFailure):
-            await ctx.send("You are not authorised to use this command. ", delete_after=10)
+            await ctx.send("You are not authorised to use this command. ")
         elif isinstance(exception, commands.CommandOnCooldown):
             exception: commands.CommandOnCooldown
             await ctx.send(f'You\'re going to fast! Try again in {exception.retry_after:.2f} seconds.')

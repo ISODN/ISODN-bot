@@ -13,9 +13,10 @@ PUN_RANGE = 'Log!A3:H'
 SERVER_IDS = {
     533153217119387658 : 'Mathematics',
     601528888908185655 : 'Physics',
-    529123158440149046 : 'Chemistry'
+    529123158440149046 : 'Chemistry',
+    684191136658751490 : 'ISODN'
 }
-mod_ids = []
+mod_codes = {}
 
 class Moderation(Cog):
     scopes = ["https://www.googleapis.com/auth/spreadsheets"]
@@ -29,15 +30,17 @@ class Moderation(Cog):
         self.bot = bot
         result = self.service.spreadsheets().values().get(spreadsheetId = SPREADSHEET_ID, range = "Staff Codes!A2:E").execute()
         values = result.get('values', [])
+        mod_codes = {}
         for i in values:
-            mod_ids.append(int(i[2]))
+            mod_codes[int(i[2])] = i[4]
+        print(mod_codes)
 
     def is_mod(ctx):
-        return ctx.author.id in mod_ids
+        return not (mod_codes.get(ctx.author.id) is None)
 
     @commands.command(aliases=['pl'])
     @commands.check(is_mod)
-    async def punishmentlog(self, ctx, userid: int):
+    async def punishment_log(self, ctx, userid: int):
         result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=PUN_RANGE).execute()
         values = result.get('values', [])
         user_punishments = []
@@ -61,16 +64,16 @@ class Moderation(Cog):
 
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
-    async def punishment_record(self, ctx, user: discord.User, mod, pun, *, reason):
+    async def punishment_record(self, ctx, user: discord.User, pun, *, reason):
         #Get the number of rows
         result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=PUN_RANGE).execute()
         num_rows = len(result.get('values', []))
         r_body = {
             'values' : [[num_rows + 1, datetime.utcnow().isoformat(), SERVER_IDS[ctx.guild.id],
-                user.id, user.name, pun, mod, reason]]
+                str(user.id), user.name, pun, mod_codes[ctx.author.id], reason]]
         }
         request = self.service.spreadsheets().values().append(spreadsheetId = SPREADSHEET_ID, range = "Log!A3",
-            valueInputOption = 'USER_ENTERED', insertDataOption = 'OVERWRITE', body = r_body)
+            valueInputOption = 'RAW', insertDataOption = 'OVERWRITE', body = r_body)
         response = request.execute()
         await ctx.send("Punishment successfully recorded. ")
 
