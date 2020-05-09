@@ -27,7 +27,7 @@ class ISODNBot(commands.Bot):
         self.logger.info('Guilds  : {}'.format(len(self.guilds)))
         self.logger.info('Users   : {}'.format(len(set(self.get_all_members()))))
         self.logger.info('Channels: {}'.format(len(list(self.get_all_channels()))))
-        await self.set_presence('DM to contact staff')
+        await self.set_presence("Discord International Network for Olympiads in Sciences: Achieving Unachievable Results")
 
         for cog in self.config['cogs']:
             try:

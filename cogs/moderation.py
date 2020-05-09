@@ -10,12 +10,7 @@ from google.oauth2 import service_account
 SPREADSHEET_ID = '1TVztC2NKbqwKesAh5C3u5GRi09SlwOTpMSwEasjOX4Y'
 PUN_RANGE = 'Log!A3:H'
 
-SERVER_IDS = {
-    533153217119387658 : 'Mathematics',
-    601528888908185655 : 'Physics',
-    529123158440149046 : 'Chemistry',
-    684191136658751490 : 'ISODN'
-}
+server_codes = {}
 mod_codes = {}
 
 class Moderation(Cog):
@@ -30,10 +25,15 @@ class Moderation(Cog):
         self.bot = bot
         result = self.service.spreadsheets().values().get(spreadsheetId = SPREADSHEET_ID, range = "Staff Codes!A2:E").execute()
         values = result.get('values', [])
-        mod_codes = {}
         for i in values:
             mod_codes[int(i[2])] = i[4]
         print(mod_codes)
+
+        server_codes_result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range="Server Codes!A1:B").execute()
+        server_codes_values = server_codes_result.get('values', [])
+        for i in server_codes_values:
+            server_codes[int(i[0])] = i[1]
+        print(server_codes)
 
     def is_mod(ctx):
         return not (mod_codes.get(ctx.author.id) is None)
@@ -69,7 +69,7 @@ class Moderation(Cog):
         result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=PUN_RANGE).execute()
         num_rows = len(result.get('values', []))
         r_body = {
-            'values' : [[num_rows + 1, datetime.utcnow().isoformat(), SERVER_IDS[ctx.guild.id],
+            'values' : [[num_rows + 1, datetime.utcnow().isoformat(), server_codes[ctx.guild.id],
                 str(user.id), user.name, pun, mod_codes[ctx.author.id], reason]]
         }
         request = self.service.spreadsheets().values().append(spreadsheetId = SPREADSHEET_ID, range = "Log!A3",
