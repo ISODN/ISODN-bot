@@ -39,7 +39,7 @@ class Moderation(Cog):
         print(server_codes)
 
     def is_mod(ctx):
-        return not (mod_codes.get(ctx.author.id) is None)
+        return ctx.author.id in mod_codes
 
     @commands.command(aliases=['pl'])
     @commands.check(is_mod)
