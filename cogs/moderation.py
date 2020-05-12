@@ -65,6 +65,30 @@ class Moderation(Cog):
             # print(return_string)
             await ctx.send(return_string)
 
+    @commands.command(aliases=['psc'])
+    async def punishment_self_check(self, ctx):
+        userid = ctx.author.id
+        result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=PUN_RANGE).execute()
+        values = result.get('values', [])
+        user_punishments = []
+
+        for row in values:
+            # print(row)
+            if int(row[3]) == userid:
+                user_punishments.append(row)
+
+        if len(user_punishments) == 0:
+            await ctx.send("This user has no punishments logged. ")
+            return
+        else:
+            return_string = 'Your punishments are: ```'
+            for row in user_punishments:
+                return_string += '#{} at {} in {} server:\t{} by {} for {}\n' \
+                    .format(row[0], row[1], row[2], row[5], row[6], row[7])
+            return_string += '``` You have incurred {} punishments.'.format(len(user_punishments))
+            # print(return_string)
+            await ctx.send(return_string)
+
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
     async def punishment_record(self, ctx, user: discord.User, pun, *, reason):
