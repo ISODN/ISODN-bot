@@ -128,6 +128,34 @@ class Moderation(Cog):
                 await ctx.send(i)
             return
 
+    @commands.command(aliases=['pw'])
+    @commands.check(is_mod)
+    async def punishment_warn(self, ctx, user: discord.User, official: bool, *, reason):
+        warn_embed = discord.Embed(
+            title='Official Warning from ISODN Staff' if official else 'Unofficial Warning from ISODN Staff',
+            color=0xFF0000)
+        warn_embed.add_field(name='Server', value=server_codes[ctx.guild.id], inline=False)
+        warn_embed.add_field(name='Staff Member', value=mod_codes[ctx.author.id], inline=False)
+        warn_embed.add_field(name='Reason', value=reason, inline=False)
+
+        if user.dm_channel is None:
+            await user.create_dm()
+        await user.dm_channel.send(embed=warn_embed)
+
+        # Get the number of rows
+        result = self.service.spreadsheets().values().get(spreadsheetId=SPREADSHEET_ID, range=PUN_RANGE).execute()
+        num_rows = len(result.get('values', []))
+        r_body = {
+            'values': [[num_rows + 1, datetime.utcnow().isoformat(), server_codes[ctx.guild.id],
+                        str(user.id), user.name, 'Warn' if official else 'Unofficial', mod_codes[ctx.author.id],
+                        reason]]
+        }
+        request = self.service.spreadsheets().values().append(spreadsheetId=SPREADSHEET_ID, range="Log!A3",
+                                                              valueInputOption='RAW', insertDataOption='OVERWRITE',
+                                                              body=r_body)
+        response = request.execute()
+        await ctx.send("Punishment successfully recorded. ")
+
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
