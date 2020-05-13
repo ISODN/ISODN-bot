@@ -78,7 +78,7 @@ class Moderation(Cog):
                 user_punishments.append(row)
 
         if len(user_punishments) == 0:
-            await ctx.send("This user has no punishments logged. ")
+            await ctx.send("I couldn't find any punishments for you.")
             return
         else:
             return_string = 'Your punishments are: ```'
