@@ -77,8 +77,10 @@ class Moderation(Cog):
             if int(row[3]) == userid:
                 user_punishments.append(row)
 
+        if ctx.author.dm_channel is None:
+            ctx.author.create_dm()
         if len(user_punishments) == 0:
-            await ctx.send("I couldn't find any punishments for you.")
+            await ctx.author.dm_channel.send("I couldn't find any punishments for you.")
             return
         else:
             return_string = 'Your punishments are: ```'
@@ -87,7 +89,7 @@ class Moderation(Cog):
                     .format(row[0], row[1], row[2], row[5], row[6], row[7])
             return_string += '``` You have incurred {} punishments.'.format(len(user_punishments))
             # print(return_string)
-            await ctx.send(return_string)
+            await ctx.author.dm_channel.send(return_string)
 
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
