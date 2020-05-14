@@ -1,5 +1,6 @@
 import discord
 from discord.ext import commands
+import logging
 
 Cog = commands.Cog
 import os
@@ -78,7 +79,7 @@ class Moderation(Cog):
                 user_punishments.append(row)
 
         if ctx.author.dm_channel is None:
-            ctx.author.create_dm()
+            await ctx.author.create_dm()
         if len(user_punishments) == 0:
             await ctx.author.dm_channel.send("I couldn't find any punishments for you.")
             return
