@@ -5,8 +5,8 @@ import traceback
 from discord.ext import commands
 from ruamel import yaml
 
-with open('config/config.yml') as cfgfile:
-    config = yaml.safe_load(cfgfile)
+cfgfile = open("config/config.yml")
+config = yaml.safe_load(cfgfile)
 
 class ISODNBot(commands.Bot):
     def __init__(self, prefix):

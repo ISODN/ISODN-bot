@@ -2,5 +2,8 @@ token: token.txt
 blacklist: blacklist.txt
 prefix: i.
 cogs:
+  - cogs.config
   - cogs.moderation
   - cogs.core
+sheets:
+  isodn_punishment_log: 1TVztC2NKbqwKesAh5C3u5GRi09SlwOTpMSwEasjOX4Y
