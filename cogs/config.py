@@ -1,4 +1,3 @@
-from ruamel import yaml
 from discord.ext import commands
 import bidict
 
@@ -26,13 +25,16 @@ class Config(Cog):
             Config.config = yaml.safe_load(cfgfile)
         self.bot = bot
 
-        result = Config.service.spreadsheets().values().get(spreadsheetId=Config.config['sheets']['isodn_punishment_log'],
-                                                          range="Staff Codes!A2:E").execute()
+        # Load mod codes
+        result = Config.service.spreadsheets().values().get(
+            spreadsheetId=Config.config['sheets']['isodn_punishment_log'],
+            range="Staff Codes!A2:E").execute()
         values = result.get('values', [])
         for i in values:
             Config.mod_codes[int(i[2])] = i[4]
         print(Config.mod_codes)
 
+        # Load server codes
         server_codes_result = Config.service.spreadsheets().values().get(
             spreadsheetId=Config.config['sheets']['isodn_punishment_log'],
             range="Server Codes!A1:B").execute()
@@ -42,7 +44,10 @@ class Config(Cog):
 
     @commands.command(aliases=['cfl'])
     async def config_load(self, ctx, name):
-        await ctx.send(str(Config.config[name]))
+        if name not in Config.config:
+            await ctx.send("No config with that name found!")
+        else:
+            await ctx.send(str(Config.config[name]))
 
 
 def setup(bot):

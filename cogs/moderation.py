@@ -151,6 +151,12 @@ class Moderation(Cog):
         response = request.execute()
         await ctx.send("Punishment successfully recorded. ")
 
+    @Cog.listener()
+    async def on_message(self, message):
+        if message.channel.id in cfg.Config.config['voting_channels']:
+            await message.add_reaction('👍')
+            await message.add_reaction('🤷')
+            await message.add_reaction('👎')
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
