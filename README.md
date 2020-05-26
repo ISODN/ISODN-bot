@@ -1,5 +1,5 @@
 # ISODN-bot
-A discord bot for the International Science Olympiad Discord Netowork.
+A discord bot for the International Science Olympiad Discord Network.
 
 ## Hosting
 ### System Requirements
@@ -16,7 +16,7 @@ a. Sign in to Discord's [bot portal](https://discordapp.com/developers/applicati
 b. Create a new application  
 c. Add the bot under the "Bot" tab  
 d. Copy the bot token and paste it in `config/token.txt`
-2. Google API token [tutorial](https://easyspeech2text.com/blog/use-google-api-json-credentials/)   
+2. Google API token ([tutorial](https://easyspeech2text.com/blog/use-google-api-json-credentials/))  
 a. Create the secret json  
 b. Rename it to `credentials.json` and move it to the `config` folder
 
