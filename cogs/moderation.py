@@ -18,7 +18,7 @@ class Moderation(Cog):
     def is_mod(ctx):
         return ctx.author.id in cfg.Config.mod_codes
 
-    @commands.command(aliases=['pl'])
+    @commands.command(aliases=['pl', 'pun_log'])
     @commands.check(is_mod)
     async def punishment_log(self, ctx, userid: int):
         result = cfg.Config.service.spreadsheets().values().get(
@@ -43,7 +43,7 @@ class Moderation(Cog):
             # print(return_string)
             await ctx.send(return_string)
 
-    @commands.command(aliases=['psc'])
+    @commands.command(aliases=['psc', 'my_punishments'])
     async def punishment_self_check(self, ctx):
         # load all punishments
         userid = ctx.author.id
@@ -120,7 +120,7 @@ class Moderation(Cog):
                 await ctx.send(i)
             return
 
-    @commands.command(aliases=['pw'])
+    @commands.command(aliases=['pw', 'warn'])
     @commands.check(is_mod)
     async def punishment_warn(self, ctx, user: discord.User, official: bool, *, reason):
         warn_embed = discord.Embed(
