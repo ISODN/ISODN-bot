@@ -41,6 +41,7 @@ class Config(Cog):
         server_codes_values = server_codes_result.get('values', [])
         for i in server_codes_values:
             Config.server_codes[int(i[0])] = i[1]
+        print(Config.server_codes)
 
     @commands.command(aliases=['cfl'])
     async def config_load(self, ctx, name):
@@ -48,6 +49,7 @@ class Config(Cog):
             await ctx.send("No config with that name found!")
         else:
             await ctx.send(str(Config.config[name]))
+
 
 
 def setup(bot):

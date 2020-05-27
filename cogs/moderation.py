@@ -151,12 +151,53 @@ class Moderation(Cog):
         response = request.execute()
         await ctx.send("Punishment successfully recorded. ")
 
+    @commands.command(aliases=['pnb', 'netban'])
+    @commands.check(is_mod)
+    async def punishment_network_ban(self, ctx, user: int, *, reason):
+        for server in cfg.Config.server_codes:
+            try:
+                await self.bot.get_guild(server).ban(discord.Object(user), reason=reason)
+                await ctx.send("Banned {} in {}. ".format(user, cfg.Config.server_codes[server]))
+            except:
+                await ctx.send("Error banning {} in {}. Does the bot have the required permissions? ".format(user,
+                                                                                                             cfg.Config.server_codes[
+                                                                                                                 server]))
+        # Get the number of rows
+        result = cfg.Config.service.spreadsheets().values().get(
+            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
+        num_rows = len(result.get('values', []))
+        # Write this data
+        r_body = {
+            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
+                        str(user), self.bot.get_user(user).name if self.bot.get_user(user) is not None else 'Unknown',
+                        'Network Ban', cfg.Config.mod_codes[ctx.author.id], reason]]
+        }
+        cfg.Config.service.spreadsheets().values().append(
+            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range="Log!A3",
+            valueInputOption='RAW', insertDataOption='OVERWRITE',
+            body=r_body).execute()
+        await ctx.send("Punishment successfully recorded. ")
+
+    @commands.command(aliases=['pnu', 'netunban'])
+    @commands.check(is_mod)
+    async def punishment_network_unban(self, ctx, userid: int, *, reason):
+        for server in cfg.Config.server_codes:
+            try:
+                await self.bot.get_guild(server).unban(discord.Object(userid), reason=reason)
+                await ctx.send("Unbanned {} from {}.".format(userid, cfg.Config.server_codes[server]))
+            except:
+                await ctx.send(
+                    "Couldn't unban {} from {}. Is the bot lacking permissions or are they not banned?".format(userid,
+                                                                                                               cfg.Config.server_codes[
+                                                                                                                   server]))
+
     @Cog.listener()
     async def on_message(self, message):
         if message.channel.id in cfg.Config.config['voting_channels']:
             await message.add_reaction('👍')
             await message.add_reaction('🤷')
             await message.add_reaction('👎')
+
 
 def setup(bot):
     bot.add_cog(Moderation(bot))
