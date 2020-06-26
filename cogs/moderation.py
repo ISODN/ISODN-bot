@@ -154,6 +154,10 @@ class Moderation(Cog):
     @commands.command(aliases=['pnb', 'netban'])
     @commands.check(is_mod)
     async def punishment_network_ban(self, ctx, user: int, *, reason):
+        if user in cfg.Config.mod_codes:
+            await ctx.send("Can't network ban a mod!")
+            return
+
         for server in cfg.Config.server_codes:
             try:
                 await self.bot.get_guild(server).ban(discord.Object(user), reason=reason)
