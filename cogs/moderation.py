@@ -11,9 +11,9 @@ PUN_RANGE = 'Log!A3:H'
 
 def get_punishment_embed(ctx, punishment, reason):
     embed = discord.Embed(title=f'{punishment} from ISODN Staff', colour=0xAA0000)
-    embed.add_field(name='Punishment', value=punishment, inline=True)
-    embed.add_field(name='Acting Moderator', value=cfg.Config.mod_codes[ctx.author.id], inline=True)
-    embed.add_field(name='Reason', value=reason, inline=True)
+    embed.add_field(name='Punishment', value=punishment, inline=False)
+    embed.add_field(name='Acting Moderator', value=cfg.Config.mod_codes[ctx.author.id], inline=False)
+    embed.add_field(name='Reason', value=reason, inline=False)
     return embed
 
 
