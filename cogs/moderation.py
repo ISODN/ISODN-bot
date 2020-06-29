@@ -9,6 +9,14 @@ from cogs import config as cfg
 PUN_RANGE = 'Log!A3:H'
 
 
+def get_punishment_embed(ctx, punishment, reason):
+    embed = discord.Embed(title=f'{punishment} from ISODN Staff', colour=0xAA0000)
+    embed.add_field(name='Punishment', value=punishment)
+    embed.add_field(name='Acting Moderator', value=cfg.Config.mod_codes[ctx.author.id])
+    embed.add_field(name='Reason', value=reason)
+    return embed
+
+
 class Moderation(Cog):
     SPREADSHEET_ID = None
 
@@ -17,6 +25,23 @@ class Moderation(Cog):
 
     def is_mod(ctx):
         return ctx.author.id in cfg.Config.mod_codes
+
+    def record_punishment(self, ctx, user, punishment, reason):
+        # Get the number of rows
+        result = cfg.Config.service.spreadsheets().values().get(
+            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
+        num_rows = len(result.get('values', []))
+        # Write this data
+        r_body = {
+            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
+                        str(user), self.bot.get_user(user).name if self.bot.get_user(user) is not None else 'Unknown',
+                        punishment, cfg.Config.mod_codes[ctx.author.id], reason]]
+        }
+        cfg.Config.service.spreadsheets().values().append(
+            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range="Log!A3",
+            valueInputOption='RAW', insertDataOption='OVERWRITE',
+            body=r_body).execute()
+        await ctx.send("Punishment successfully recorded. ")
 
     @commands.command(aliases=['pl', 'pun_log'])
     @commands.check(is_mod)
@@ -76,21 +101,9 @@ class Moderation(Cog):
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
     async def punishment_record(self, ctx, user: discord.User, pun, *, reason):
-        # Get the number of rows
-        result = cfg.Config.service.spreadsheets().values().get(
-            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
-        num_rows = len(result.get('values', []))
+        self.record_punishment(ctx, user.id, pun, reason)
+        await user.send(embed=get_punishment_embed(ctx, pun, reason))
 
-        # Write this data
-        r_body = {
-            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
-                        str(user.id), user.name, pun, cfg.Config.mod_codes[ctx.author.id], reason]]
-        }
-        cfg.Config.service.spreadsheets().values().append(
-            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range="Log!A3",
-            valueInputOption='RAW', insertDataOption='OVERWRITE',
-            body=r_body).execute()
-        await ctx.send("Punishment successfully recorded. ")
 
     @commands.command(aliases=['pc'])
     @commands.check(is_mod)
@@ -154,6 +167,7 @@ class Moderation(Cog):
     @commands.command(aliases=['pnb', 'netban'])
     @commands.check(is_mod)
     async def punishment_network_ban(self, ctx, user: int, *, reason):
+        await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
         if user in cfg.Config.mod_codes:
             await ctx.send("Can't network ban a mod!")
             return
@@ -166,21 +180,8 @@ class Moderation(Cog):
                 await ctx.send("Error banning {} in {}. Does the bot have the required permissions? ".format(user,
                                                                                                              cfg.Config.server_codes[
                                                                                                                  server]))
-        # Get the number of rows
-        result = cfg.Config.service.spreadsheets().values().get(
-            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
-        num_rows = len(result.get('values', []))
-        # Write this data
-        r_body = {
-            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
-                        str(user), self.bot.get_user(user).name if self.bot.get_user(user) is not None else 'Unknown',
-                        'Network Ban', cfg.Config.mod_codes[ctx.author.id], reason]]
-        }
-        cfg.Config.service.spreadsheets().values().append(
-            spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range="Log!A3",
-            valueInputOption='RAW', insertDataOption='OVERWRITE',
-            body=r_body).execute()
-        await ctx.send("Punishment successfully recorded. ")
+        self.record_punishment(ctx, user, 'Network Ban', reason)
+
 
     @commands.command(aliases=['pnu', 'netunban'])
     @commands.check(is_mod)
