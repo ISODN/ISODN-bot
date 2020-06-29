@@ -26,7 +26,7 @@ class Moderation(Cog):
     def is_mod(ctx):
         return ctx.author.id in cfg.Config.mod_codes
 
-    def record_punishment(self, ctx, user, punishment, reason):
+    async def record_punishment(self, ctx, user, punishment, reason):
         # Get the number of rows
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
@@ -101,7 +101,7 @@ class Moderation(Cog):
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
     async def punishment_record(self, ctx, user: discord.User, pun, *, reason):
-        self.record_punishment(ctx, user.id, pun, reason)
+        await self.record_punishment(ctx, user.id, pun, reason)
         await user.send(embed=get_punishment_embed(ctx, pun, reason))
 
 
@@ -180,7 +180,7 @@ class Moderation(Cog):
                 await ctx.send("Error banning {} in {}. Does the bot have the required permissions? ".format(user,
                                                                                                              cfg.Config.server_codes[
                                                                                                                  server]))
-        self.record_punishment(ctx, user, 'Network Ban', reason)
+        await self.record_punishment(ctx, user, 'Network Ban', reason)
 
 
     @commands.command(aliases=['pnu', 'netunban'])
