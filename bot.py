@@ -9,12 +9,6 @@ from ruamel import yaml
 cfgfile = open("config/config.yml")
 config = yaml.safe_load(cfgfile)
 
-logger = logging.getLogger('discord')
-logger.setLevel(logging.DEBUG)
-handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
-handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
-logger.addHandler(handler)
-
 
 class ISODNBot(commands.Bot):
     def __init__(self, prefix):
