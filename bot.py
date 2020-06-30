@@ -1,12 +1,20 @@
-import re
 import logging
-import discord
+import re
 import traceback
+
+import discord
 from discord.ext import commands
 from ruamel import yaml
 
 cfgfile = open("config/config.yml")
 config = yaml.safe_load(cfgfile)
+
+logger = logging.getLogger('discord')
+logger.setLevel(logging.DEBUG)
+handler = logging.FileHandler(filename='discord.log', encoding='utf-8', mode='w')
+handler.setFormatter(logging.Formatter('%(asctime)s:%(levelname)s:%(name)s: %(message)s'))
+logger.addHandler(handler)
+
 
 class ISODNBot(commands.Bot):
     def __init__(self, prefix):
@@ -27,7 +35,8 @@ class ISODNBot(commands.Bot):
         self.logger.info('Guilds  : {}'.format(len(self.guilds)))
         self.logger.info('Users   : {}'.format(len(set(self.get_all_members()))))
         self.logger.info('Channels: {}'.format(len(list(self.get_all_channels()))))
-        await self.set_presence("ISODN Bot [Discord International Network for Olympiads in Sciences: Achieving Unachievable Results]")
+        await self.set_presence(
+            "ISODN Bot [Discord International Network for Olympiads in Sciences: Achieving Unachievable Results]")
 
         for cog in self.config['cogs']:
             try:
