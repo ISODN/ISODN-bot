@@ -45,7 +45,7 @@ class Moderation(Cog):
 
     @commands.command(aliases=['pl', 'pun_log'])
     @commands.check(is_mod)
-    async def punishment_log(self, ctx, userid: int):
+    async def logbyuser(self, ctx, userid: int):
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         values = result.get('values', [])
@@ -100,14 +100,14 @@ class Moderation(Cog):
 
     @commands.command(aliases=['pr'])
     @commands.check(is_mod)
-    async def punishment_record(self, ctx, user: discord.User, pun, *, reason):
+    async def record(self, ctx, user: discord.User, pun, *, reason):
         await self.record_punishment(ctx, user.id, pun, reason)
         await user.send(embed=get_punishment_embed(ctx, pun, reason))
 
 
     @commands.command(aliases=['pc'])
     @commands.check(is_mod)
-    async def punishment_check(self, ctx, mod_code):
+    async def logbymod(self, ctx, mod_code):
         # load all punishments
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
@@ -135,7 +135,7 @@ class Moderation(Cog):
 
     @commands.command(aliases=['pw', 'warn'])
     @commands.check(is_mod)
-    async def punishment_warn(self, ctx, user: discord.User, official: bool, *, reason):
+    async def warn(self, ctx, user: discord.User, official: bool, *, reason):
         warn_embed = discord.Embed(
             title='Official Warning from ISODN Staff' if official else 'Unofficial Warning from ISODN Staff',
             color=0xFF0000)
@@ -164,9 +164,9 @@ class Moderation(Cog):
         response = request.execute()
         await ctx.send("Punishment successfully recorded. ")
 
-    @commands.command(aliases=['pnb', 'netban'])
+    @commands.command()
     @commands.check(is_mod)
-    async def punishment_network_ban(self, ctx, user: int, *, reason):
+    async def netban(self, ctx, user: int, *, reason):
         await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
         if user in cfg.Config.mod_codes:
             await ctx.send("Can't network ban a mod!")
@@ -183,9 +183,9 @@ class Moderation(Cog):
         await self.record_punishment(ctx, user, 'Network Ban', reason)
 
 
-    @commands.command(aliases=['pnu', 'netunban'])
+    @commands.command()
     @commands.check(is_mod)
-    async def punishment_network_unban(self, ctx, userid: int, *, reason):
+    async def unnetban(self, ctx, userid: int, *, reason):
         for server in cfg.Config.server_codes:
             try:
                 await self.bot.get_guild(server).unban(discord.Object(userid), reason=reason)
