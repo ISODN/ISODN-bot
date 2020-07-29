@@ -133,7 +133,7 @@ class Moderation(Cog):
                 await ctx.send(i)
             return
 
-    @commands.command(aliases=['pw', 'warn'])
+    @commands.command()
     @commands.check(is_mod)
     async def warn(self, ctx, user: discord.User, official: bool, *, reason):
         warn_embed = discord.Embed(
