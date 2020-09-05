@@ -12,7 +12,6 @@ PUN_RANGE = 'Log!A3:H'
 def get_punishment_embed(ctx, punishment, reason):
     embed = discord.Embed(title=f'{punishment} from ISODN Staff', colour=0xAA0000)
     embed.add_field(name='Punishment', value=punishment, inline=False)
-    embed.add_field(name='Acting Moderator', value=cfg.Config.mod_codes[ctx.author.id], inline=False)
     embed.add_field(name='Reason', value=reason, inline=False)
     return embed
 
@@ -136,12 +135,7 @@ class Moderation(Cog):
     @commands.command()
     @commands.check(is_mod)
     async def warn(self, ctx, user: discord.User, official: bool, *, reason):
-        warn_embed = discord.Embed(
-            title='Official Warning from ISODN Staff' if official else 'Unofficial Warning from ISODN Staff',
-            color=0xFF0000)
-        warn_embed.add_field(name='Server', value=cfg.Config.server_codes[ctx.guild.id], inline=False)
-        warn_embed.add_field(name='Staff Member', value=cfg.Config.mod_codes[ctx.author.id], inline=False)
-        warn_embed.add_field(name='Reason', value=reason, inline=False)
+        warn_embed = get_punishment_embed(ctx, 'Official Warning' if official else 'Unofficial Warning', reason)
 
         if user.dm_channel is None:
             await user.create_dm()
