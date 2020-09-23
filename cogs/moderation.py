@@ -161,7 +161,6 @@ class Moderation(Cog):
     @commands.command()
     @commands.check(is_mod)
     async def netban(self, ctx, user: int, *, reason):
-        await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
         if user in cfg.Config.mod_codes:
             await ctx.send("Can't network ban a mod!")
             return
@@ -175,6 +174,7 @@ class Moderation(Cog):
                                                                                                              cfg.Config.server_codes[
                                                                                                                  server]))
         await self.record_punishment(ctx, user, 'Network Ban', reason)
+        await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
 
 
     @commands.command()
