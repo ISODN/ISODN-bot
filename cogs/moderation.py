@@ -160,11 +160,15 @@ class Moderation(Cog):
 
     @commands.command()
     @commands.check(is_mod)
-    async def netban(self, ctx, user: int, *, reason):
-        await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
+    async def netban(self, ctx, user: int, *, reason):        
         if user in cfg.Config.mod_codes:
             await ctx.send("Can't network ban a mod!")
             return
+        
+        try: 
+            await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
+        except: 
+            await ctx.send("Can't DM to them. Maybe they aren't in any ISODN servers? ")
 
         for server in cfg.Config.server_codes:
             try:
