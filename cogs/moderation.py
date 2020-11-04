@@ -33,7 +33,7 @@ class Moderation(Cog):
 
     @Cog.listener()
     async def on_member_join(self, member: discord.Member):
-        normalised = strip_fonts(member.display_name)
+        normalised = strip_fonts(member.display_name).lower()
         for bw in self.bot.secret_config['bw']:
             if bw in normalised:
                 await member.kick()
