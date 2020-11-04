@@ -1,12 +1,18 @@
 import discord
 from discord.ext import commands
 
+import unicodedata
+
 Cog = commands.Cog
 from datetime import datetime
 from cogs import assorted as ast
 from cogs import config as cfg
 
 PUN_RANGE = 'Log!A3:H'
+
+
+def strip_fonts(txt):
+    return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
 
 def get_punishment_embed(ctx, punishment, reason):
@@ -24,6 +30,16 @@ class Moderation(Cog):
 
     def is_mod(ctx):
         return ctx.author.id in cfg.Config.mod_codes
+
+    @Cog.listener()
+    async def on_member_join(self, member: discord.Member):
+        normalised = strip_fonts(member.display_name)
+        for bw in self.bot.secret_config['bw']:
+            if bw in normalised:
+                await member.kick()
+                await self.bot.get_channel(self.bot.secret_config['com_chat']).send(
+                    f'Kicked {str(member)} from server {member.guild.id} ({cfg.Config.server_codes[member.guild.id]}'
+                )
 
     async def record_punishment(self, ctx, user, punishment, reason):
         # Get the number of rows
@@ -103,7 +119,6 @@ class Moderation(Cog):
         await self.record_punishment(ctx, user.id, pun, reason)
         await user.send(embed=get_punishment_embed(ctx, pun, reason))
 
-
     @commands.command(aliases=['pc'])
     @commands.check(is_mod)
     async def logbymod(self, ctx, mod_code):
@@ -160,14 +175,14 @@ class Moderation(Cog):
 
     @commands.command()
     @commands.check(is_mod)
-    async def netban(self, ctx, user: int, *, reason):        
+    async def netban(self, ctx, user: int, *, reason):
         if user in cfg.Config.mod_codes:
             await ctx.send("Can't network ban a mod!")
             return
-        
-        try: 
+
+        try:
             await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
-        except: 
+        except:
             await ctx.send("Can't DM to them. Maybe they aren't in any ISODN servers? ")
 
         for server in cfg.Config.server_codes:
@@ -179,7 +194,6 @@ class Moderation(Cog):
                                                                                                              cfg.Config.server_codes[
                                                                                                                  server]))
         await self.record_punishment(ctx, user, 'Network Ban', reason)
-
 
     @commands.command()
     @commands.check(is_mod)

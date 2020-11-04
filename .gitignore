@@ -115,3 +115,4 @@ venv.bak/
 *.txt
 
 config/credentials.json
+config/secret_config.yml
