@@ -225,6 +225,9 @@ class Moderation(Cog):
             await message.author.add_roles(muted)
             await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
                                        f'pinging {len(message.mentions)} people')
+            await message.author.send(
+                f'You were muted in {message.guild} for mass pinging. '
+                f'If you disagree with this, please dm one of the mods')
             await asyncio.sleep(60 * len(message.mentions))
             await message.author.remove_roles(muted)
 
