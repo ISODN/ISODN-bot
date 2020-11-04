@@ -221,7 +221,7 @@ class Moderation(Cog):
         # Check pings
         ping_limit = 5
         if len(message.mentions) >= ping_limit:
-            muted = get(message.guild.roles, name="Muted")
+            muted = get(message.guild.roles, name="muted")
             await message.author.add_roles(muted)
             await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
                                        f'pinging {len(message.mentions)} people')
