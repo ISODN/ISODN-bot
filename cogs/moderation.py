@@ -1,5 +1,7 @@
 import discord
 from discord.ext import commands
+from discord.utils import get
+import asyncio
 
 import unicodedata
 
@@ -210,10 +212,21 @@ class Moderation(Cog):
 
     @Cog.listener()
     async def on_message(self, message):
+        # Handle reactions and stuff
         if message.channel.id in cfg.Config.config['voting_channels']:
             await message.add_reaction('👍')
             await message.add_reaction('🤷')
             await message.add_reaction('👎')
+
+        # Check pings
+        ping_limit = 5
+        if len(message.mentions) >= ping_limit:
+            muted = get(message.guild.roles, name="Muted")
+            await message.author.add_roles(muted)
+            await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
+                                       f'pinging {len(message.mentions)} people')
+            await asyncio.sleep(60 * len(message.mentions))
+            await message.author.remove_roles(muted)
 
 
 def setup(bot):
