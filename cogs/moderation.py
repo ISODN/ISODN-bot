@@ -214,9 +214,10 @@ class Moderation(Cog):
     async def on_message(self, message):
         # Handle reactions and stuff
         if message.channel.id in cfg.Config.config['voting_channels']:
-            await message.add_reaction('👍')
-            await message.add_reaction('🤷')
-            await message.add_reaction('👎')
+            if (message != cfg.Config.config['mod_announcements']) or (message.content[:4].lower() == 'vote'):
+                await message.add_reaction('👍')
+                await message.add_reaction('🤷')
+                await message.add_reaction('👎')
 
         # Check pings
         ping_limit = 5
