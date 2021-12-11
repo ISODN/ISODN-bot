@@ -1,12 +1,11 @@
 import discord
 from discord.ext import commands
 from discord.utils import get
-import asyncio
 
 import unicodedata
 
 Cog = commands.Cog
-from datetime import datetime
+from datetime import datetime, timedelta
 from cogs import assorted as ast
 from cogs import config as cfg
 
@@ -212,6 +211,13 @@ class Moderation(Cog):
 
     @Cog.listener()
     async def on_message(self, message):
+        def strToT(x):
+            return datetime.strptime(x, r'%Y-%m-%d %H:%M')
+        def tToStr(x):
+            return x.strftime(r'%Y-%m-%d %H:%M')
+        def roundMin(x):
+            return x - timedelta(seconds = x.second, microseconds = x.microsecond)
+
         # Handle reactions and stuff
         if message.channel.id in cfg.Config.config['voting_channels']:
             if (message.channel.id != cfg.Config.config['mod_announcements']) or (message.content[:4].lower() == 'vote'):
@@ -219,18 +225,105 @@ class Moderation(Cog):
                 await message.add_reaction('🤷')
                 await message.add_reaction('👎')
 
-        # Check pings
-        ping_limit = 5
-        if len(message.mentions) >= ping_limit:
+        # Moderate pings
+        mentions = len(set(filter(lambda x: not x.bot, message.mentions)))
+        if not message.author.bot and message.guild != None and mentions > 0:
+        
+            ss_id = cfg.Config.config['sheets']['isodn_punishment_log']
+            ss = cfg.Config.service.spreadsheets().get(
+                spreadsheetId=ss_id).execute()
+            # Create sheet 'Pings' if doesn't exist
+            if not 'Pings' in [i['properties']['title'] for i in ss['sheets']]:
+                cfg.Config.service.spreadsheets().batchUpdate(
+                    spreadsheetId=ss_id,
+                    body={"requests": [{"addSheet": {"properties": {"title": "Pings"}}}]} 
+                    ).execute()
+                cfg.Config.service.spreadsheets().values().append(
+                    spreadsheetId=ss_id, range='Pings!A1', valueInputOption='RAW', insertDataOption='OVERWRITE',
+                    body={"values": [['Last updated', '2000-01-01 00:00'],
+                        ['Guild', 'User ID', 'Username', 'Minute count', 'Violate count', 'Unmute']]}
+                    ).execute()
+
+            # Record pings
+            now = datetime.now()
+            ping_log = cfg.Config.service.spreadsheets().values().get(
+                spreadsheetId=ss_id, range='Pings!A3:F'
+                ).execute().get('values', [])
+            length = len(ping_log)
+            last_time = strToT(cfg.Config.service.spreadsheets().values().get(
+                spreadsheetId=ss_id, range='Pings!B1'
+                ).execute().get('values', [])[0][0])
+            index = None
+            if now.date() != last_time.date():
+                ping_log = []
+            if roundMin(now) != roundMin(last_time):
+                ping_log = list(filter(lambda x: x[4] != '0', ping_log))
+                for i in ping_log:
+                    i[3] = '0'
+            for i in range(len(ping_log)):
+                if int(ping_log[i][1]) == message.author.id and int(ping_log[i][0]) == message.guild.id:
+                    ping_log[i][3] = str(int(ping_log[i][3]) + mentions)
+                    index = i
+                    break
+            else:
+                index = len(ping_log)
+                ping_log.append([str(message.guild.id), str(message.author.id), message.author.name, str(mentions), '0', '/'])
+
+            # Check pings
+            ping_limit = 5
+            min_limit = 10          # Number of pings in a minute
+            daily_limit = 30        # Number of pings involved in violations in a day
             muted = get(message.guild.roles, name="muted")
-            await message.author.add_roles(muted)
-            await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
-                                       f'pinging {len(message.mentions)} people')
-            await message.author.send(
-                f'You were muted in {message.guild} for mass pinging. '
-                f'If you disagree with this, please dm one of the mods')
-            await asyncio.sleep(60 * len(message.mentions))
-            await message.author.remove_roles(muted)
+
+            async def mute(minutes):
+                mute_until = datetime.now() + timedelta(minutes = minutes)
+                if ping_log[index][5] == '/' or strToT(ping_log[index][5]) < mute_until:
+                    ping_log[index][5] = tToStr(mute_until)
+                    try:
+                        await message.author.add_roles(muted)
+                        ast.Timer(60 * minutes, unmute)
+                    except:
+                        await message.channel.send(f"Error muting {message.author.mention}. Does the bot have the required permissions? ")
+                    await message.channel.send(f'{message.author.mention} was muted for {minutes} minutes for spam pinging')
+                    try:
+                        await message.author.send(
+                            f'You were muted in {message.guild} for spam pinging. '
+                            f'If you disagree with this, please dm one of the mods')
+                    except:
+                        await message.channel.send("Can't DM to them. Maybe they aren't in any ISODN servers? ")
+            async def unmute():
+                try:
+                    if strToT(ping_log[index][5]) <= datetime.now():
+                        await message.author.remove_roles(muted)
+                except:
+                    pass
+
+            if int(ping_log[index][3]) >= min_limit:
+                await mute(int(ping_log[index][3]))
+                ping_log[index][4] = str(int(ping_log[index][4]) + int(ping_log[index][3]))
+                ping_log[index][3] = '0'
+            if mentions >= ping_limit:
+                await mute(mentions)
+                ping_log[index][4] = str(int(ping_log[index][4]) + mentions)
+                ping_log[index][3] = '0'
+            if int(ping_log[index][4]) >= daily_limit:
+                ctx = await self.bot.get_context(message)
+                ctx.author = self.bot.user
+                await self.netban(ctx, message.author.id, reason = 'Spam pinging')
+
+            # Update sheet
+            if length > len(ping_log):
+                print(cfg.Config.service.spreadsheets().values().clear(
+                spreadsheetId=ss_id, range=f"Pings!A{len(ping_log)+3}:F{length+2}", body={}).execute())
+            cfg.Config.service.spreadsheets().values().update(
+                spreadsheetId=ss_id, range="Pings!B1", valueInputOption="RAW", 
+                body={"range": "Pings!B1", "values": [[tToStr(now)]]} 
+                ).execute()
+            cfg.Config.service.spreadsheets().values().update(
+                spreadsheetId=ss_id, range="Pings!A3:F", valueInputOption="RAW", 
+                body={"range": "Pings!A3:F", "values": ping_log} 
+                ).execute()
+        
 
 
 def setup(bot):
