@@ -1,3 +1,4 @@
+import asyncio
 
 def split_msg_bylines(msg):
     lines = msg.split('\n')
@@ -22,3 +23,16 @@ def split_msg_bylines(msg):
     blocks.append(current_msg)
     #print(blocks)
     return blocks
+
+class Timer:
+    def __init__(self, seconds, routine):
+        self.seconds = seconds
+        self.routine = routine
+        self.task = asyncio.ensure_future(self.job())
+
+    async def job(self):
+        await asyncio.sleep(self.seconds)
+        await self.routine()
+
+    def cancel(self):
+        self.task.cancel()
