@@ -32,6 +32,7 @@ class Config(Cog):
         values = result.get('values', [])
         for i in values:
             Config.mod_codes[int(i[2])] = i[4]
+        Config.mod_codes[self.bot.user.id] = 'DINOSAUR'
         print(Config.mod_codes)
 
         # Load server codes
