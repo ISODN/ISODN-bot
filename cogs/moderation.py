@@ -6,7 +6,7 @@ import asyncio
 import unicodedata
 
 Cog = commands.Cog
-from datetime import datetime
+from datetime import datetime, timedelta
 from cogs import assorted as ast
 from cogs import config as cfg
 
@@ -210,13 +210,30 @@ class Moderation(Cog):
                                                                                                                cfg.Config.server_codes[
                                                                                                                    server]))
 
+    @commands.command()
+    @commands.check(is_mod)
+    async def purge_user(self, ctx, userid: int, hours: int = 24):
+        for channel in ctx.guild.text_channels:
+            try:
+                def check(m):
+                    print(m.author.id, userid, m.author.id == userid)
+                    return m.author.id == userid
+                await channel.purge(limit = 500, check = check, after = datetime.utcnow() - timedelta(hours = hours))
+            except:
+                try:
+                    await ctx.send(f'Failed to purge in {channel.mention}. Does the bot have the required permissions? ')
+                except:
+                    pass
+        await ctx.send(f'Purged {userid}\'s messages in this server. ')
+
     @Cog.listener()
     async def on_message(self, message):
         # Handle reactions and stuff
         if message.channel.id in cfg.Config.config['voting_channels']:
-            await message.add_reaction('👍')
-            await message.add_reaction('🤷')
-            await message.add_reaction('👎')
+            if (message.channel.id != cfg.Config.config['mods_mod_announcements']) or (message.content[:4].lower() == 'vote'):
+                await message.add_reaction('👍')
+                await message.add_reaction('🤷')
+                await message.add_reaction('👎')
 
         # Check pings
         ping_limit = 5

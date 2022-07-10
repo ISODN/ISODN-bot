@@ -1,4 +1,3 @@
-
 def split_msg_bylines(msg):
     lines = msg.split('\n')
     #print(lines)
