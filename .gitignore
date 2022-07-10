@@ -113,6 +113,7 @@ venv.bak/
 .mypy_cache/
 
 *.txt
+!requirements.txt
 
 config/credentials.json
 config/secret_config.yml
