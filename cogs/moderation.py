@@ -249,5 +249,5 @@ class Moderation(Cog):
             await message.author.remove_roles(muted)
 
 
-def setup(bot):
-    bot.add_cog(Moderation(bot))
+async def setup(bot):
+    await bot.add_cog(Moderation(bot))

@@ -36,7 +36,7 @@ class ISODNBot(commands.Bot):
 
         for cog in self.config['cogs']:
             try:
-                self.load_extension(cog)
+                await self.load_extension(cog)
             except Exception:
                 self.logger.exception('Failed to load cog {}.'.format(cog))
             else:
