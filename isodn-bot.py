@@ -13,6 +13,7 @@ class ISODNBot(commands.Bot):
     def __init__(self, prefix):
         intents = discord.Intents.default()
         intents.members = True
+        intents.message_content = True
         super().__init__(prefix, intents=intents)
         self.config = config
         self.secret_config = yaml.safe_load(open('config/secret_config.yml'))
