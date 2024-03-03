@@ -239,14 +239,25 @@ class Moderation(Cog):
         ping_limit = 5
         if len(message.mentions) >= ping_limit:
             muted = get(message.guild.roles, name="muted")
-            await message.author.add_roles(muted)
-            await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
-                                       f'pinging {len(message.mentions)} people')
-            await message.author.send(
-                f'You were muted in {message.guild} for mass pinging. '
-                f'If you disagree with this, please dm one of the mods')
-            await asyncio.sleep(60 * len(message.mentions))
-            await message.author.remove_roles(muted)
+            helper_team = get(message.guild.roles, name="Helper Team")
+            trusted_bot = get(message.guild.roles, name="trusted bot")
+            
+            allow_mass_ping = False
+
+            if helper_team != None and helper_team in message.author.roles:
+                allow_mass_ping = True
+            if trusted_bot != None and trusted_bot in message.author.roles:
+                allow_mass_ping = True
+
+            if not allow_mass_ping:
+                await message.author.add_roles(muted)
+                await message.channel.send(f'{message.author.mention} was muted for {len(message.mentions)} minutes for '
+                                        f'pinging {len(message.mentions)} people')
+                await message.author.send(
+                    f'You were muted in {message.guild} for mass pinging. '
+                    f'If you disagree with this, please dm one of the mods')
+                await asyncio.sleep(60 * len(message.mentions))
+                await message.author.remove_roles(muted)
 
 
 async def setup(bot):
