@@ -154,10 +154,6 @@ class Moderation(Cog):
     async def warn(self, ctx, user: discord.User, official: bool, *, reason):
         warn_embed = get_punishment_embed(ctx, 'Official Warning' if official else 'Unofficial Warning', reason)
 
-        if user.dm_channel is None:
-            await user.create_dm()
-        await user.dm_channel.send(embed=warn_embed)
-
         # Get the number of rows
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
@@ -174,6 +170,11 @@ class Moderation(Cog):
             body=r_body)
         response = request.execute()
         await ctx.send("Punishment successfully recorded. ")
+
+        if user.dm_channel is None:
+            await user.create_dm()
+        await user.dm_channel.send(embed=warn_embed)
+        await ctx.send("DM successfully sent.")
 
     @commands.command()
     @commands.check(is_mod)
