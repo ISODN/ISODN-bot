@@ -1,4 +1,5 @@
 import discord
+from discord import app_commands
 from discord.ext import commands
 from discord.utils import get
 import asyncio
@@ -6,7 +7,7 @@ import asyncio
 import unicodedata
 
 Cog = commands.Cog
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from cogs import assorted as ast
 from cogs import config as cfg
 
@@ -17,11 +18,23 @@ def strip_fonts(txt):
     return unicodedata.normalize('NFKD', txt).encode('ascii', 'ignore').decode('ascii')
 
 
-def get_punishment_embed(ctx, punishment, reason):
+def get_punishment_embed(interaction, punishment, reason):
     embed = discord.Embed(title=f'{punishment} from ISODN Staff', colour=0xAA0000)
     embed.add_field(name='Punishment', value=punishment, inline=False)
     embed.add_field(name='Reason', value=reason, inline=False)
     return embed
+
+
+async def respond(interaction, content=None, embed=None, ephemeral=False):
+    """Send a reply to the interaction, using a followup if it was already responded to."""
+    if interaction.response.is_done():
+        await interaction.followup.send(content, embed=embed, ephemeral=ephemeral)
+    else:
+        await interaction.response.send_message(content, embed=embed, ephemeral=ephemeral)
+
+
+def is_mod(interaction: discord.Interaction) -> bool:
+    return interaction.user.id in cfg.Config.mod_codes
 
 
 class Moderation(Cog):
@@ -30,11 +43,9 @@ class Moderation(Cog):
     def __init__(self, bot):
         self.bot = bot
 
-    def is_mod(ctx):
-        return ctx.author.id in cfg.Config.mod_codes
-
     @Cog.listener()
     async def on_member_join(self, member: discord.Member):
+        # NOTE: dormant unless the (privileged) members intent is enabled
         normalised = strip_fonts(member.display_name).lower()
         for bw in self.bot.secret_config['bw']:
             if bw in normalised:
@@ -43,26 +54,31 @@ class Moderation(Cog):
                     f'Kicked {str(member)} from server {member.guild.id} ({cfg.Config.server_codes[member.guild.id]}'
                 )
 
-    async def record_punishment(self, ctx, user, punishment, reason):
+    async def record_punishment(self, interaction, user, punishment, reason):
         # Get the number of rows
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         num_rows = len(result.get('values', []))
+        # Resolve the username, falling back when the user can't be fetched
+        try:
+            username = (await self.bot.fetch_user(user)).name
+        except discord.HTTPException:
+            username = 'Unknown'
         # Write this data
         r_body = {
-            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
-                        str(user), self.bot.get_user(user).name if self.bot.get_user(user) is not None else 'Unknown',
-                        punishment, cfg.Config.mod_codes[ctx.author.id], reason]]
+            'values': [[num_rows + 1, datetime.now(timezone.utc).isoformat(), cfg.Config.server_codes[interaction.guild.id],
+                        str(user), username, punishment, cfg.Config.mod_codes[interaction.user.id], reason]]
         }
         cfg.Config.service.spreadsheets().values().append(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range="Log!A3",
             valueInputOption='RAW', insertDataOption='OVERWRITE',
             body=r_body).execute()
-        await ctx.send("Punishment successfully recorded. ")
+        await respond(interaction, "Punishment successfully recorded. ")
 
-    @commands.command(aliases=['pl', 'pun_log'])
-    @commands.check(is_mod)
-    async def logbyuser(self, ctx, userid: int):
+    @app_commands.command(name='logbyuser', description='Lists all punishments logged for a user ID')
+    @app_commands.check(is_mod)
+    @app_commands.describe(user_id='Discord user ID to look up')
+    async def logbyuser(self, interaction: discord.Interaction, user_id: int):
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         values = result.get('values', [])
@@ -70,25 +86,25 @@ class Moderation(Cog):
 
         for row in values:
             # print(row)
-            if int(row[3]) == userid:
+            if int(row[3]) == user_id:
                 user_punishments.append(row)
 
         if len(user_punishments) == 0:
-            await ctx.send("This user has no punishments logged. ")
+            await respond(interaction, "This user has no punishments logged. ", ephemeral=True)
             return
         else:
-            return_string = 'User punishments for: {}\n```'.format(userid)
+            return_string = 'User punishments for: {}\n```'.format(user_id)
             for row in user_punishments:
                 return_string += '#{} at {} in {} server:\t{} by {} for {}\n' \
                     .format(row[0], row[1], row[2], row[5], row[6], row[7])
             return_string += '``` User has incurred {} punishments.'.format(len(user_punishments))
             # print(return_string)
-            await ctx.send(return_string)
+            await respond(interaction, return_string)
 
-    @commands.command(aliases=['psc', 'my_punishments'])
-    async def punishment_self_check(self, ctx):
+    @app_commands.command(name='punishment_self_check', description='DMs you a list of your own punishments')
+    async def punishment_self_check(self, interaction: discord.Interaction):
         # load all punishments
-        userid = ctx.author.id
+        userid = interaction.user.id
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         values = result.get('values', [])
@@ -101,11 +117,10 @@ class Moderation(Cog):
                 user_punishments.append(row)
 
         # send it in DMs
-        if ctx.author.dm_channel is None:
-            await ctx.author.create_dm()
+        if interaction.user.dm_channel is None:
+            await interaction.user.create_dm()
         if len(user_punishments) == 0:
-            await ctx.author.dm_channel.send("I couldn't find any punishments for you.")
-            return
+            await interaction.user.dm_channel.send("I couldn't find any punishments for you.")
         else:
             return_string = 'Your punishments are: ```'
             for row in user_punishments:
@@ -113,17 +128,21 @@ class Moderation(Cog):
                     .format(row[0], row[1], row[2], row[5], row[6], row[7])
             return_string += '``` You have incurred {} punishments.'.format(len(user_punishments))
             # print(return_string)
-            await ctx.author.dm_channel.send(return_string)
+            await interaction.user.dm_channel.send(return_string)
+        await respond(interaction, 'Sent you a DM.', ephemeral=True)
 
-    @commands.command(aliases=['pr'])
-    @commands.check(is_mod)
-    async def record(self, ctx, user: discord.User, pun, *, reason):
-        await self.record_punishment(ctx, user.id, pun, reason)
-        await user.send(embed=get_punishment_embed(ctx, pun, reason))
+    @app_commands.command(name='record', description='Records a punishment and DMs the user')
+    @app_commands.check(is_mod)
+    @app_commands.guild_only()
+    @app_commands.describe(user='User to punish', punishment='Name of the punishment', reason='Reason for the punishment')
+    async def record(self, interaction: discord.Interaction, user: discord.User, punishment: str, reason: str):
+        await self.record_punishment(interaction, user.id, punishment, reason)
+        await user.send(embed=get_punishment_embed(interaction, punishment, reason))
 
-    @commands.command(aliases=['pc'])
-    @commands.check(is_mod)
-    async def logbymod(self, ctx, mod_code):
+    @app_commands.command(name='logbymod', description='Lists all punishments issued by a mod code')
+    @app_commands.check(is_mod)
+    @app_commands.describe(mod_code='Mod code to look up')
+    async def logbymod(self, interaction: discord.Interaction, mod_code: str):
         # load all punishments
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
@@ -136,7 +155,7 @@ class Moderation(Cog):
                 user_punishments.append(row)
 
         if len(user_punishments) == 0:
-            await ctx.send("This user has not given out any punishments. ")
+            await respond(interaction, "This user has not given out any punishments. ", ephemeral=True)
             return
         else:
             return_string = 'User punishments from: {}\n```'.format(mod_code)
@@ -146,22 +165,25 @@ class Moderation(Cog):
             return_string += '``` {} has given {} punishments.'.format(mod_code, len(user_punishments))
             # print(return_string)
             for i in ast.split_msg_bylines(return_string):
-                await ctx.send(i)
+                await respond(interaction, i)
             return
 
-    @commands.command()
-    @commands.check(is_mod)
-    async def warn(self, ctx, user: discord.User, official: bool, *, reason):
-        warn_embed = get_punishment_embed(ctx, 'Official Warning' if official else 'Unofficial Warning', reason)
+    @app_commands.command(name='warn', description='Warns a user and records the warning')
+    @app_commands.check(is_mod)
+    @app_commands.guild_only()
+    @app_commands.describe(user='User to warn', official='Whether the warning is official',
+                           reason='Reason for the warning')
+    async def warn(self, interaction: discord.Interaction, user: discord.User, official: bool, reason: str):
+        warn_embed = get_punishment_embed(interaction, 'Official Warning' if official else 'Unofficial Warning', reason)
 
         # Get the number of rows
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         num_rows = len(result.get('values', []))
         r_body = {
-            'values': [[num_rows + 1, datetime.utcnow().isoformat(), cfg.Config.server_codes[ctx.guild.id],
+            'values': [[num_rows + 1, datetime.now(timezone.utc).isoformat(), cfg.Config.server_codes[interaction.guild.id],
                         str(user.id), user.name, 'Warn' if official else 'Unofficial',
-                        cfg.Config.mod_codes[ctx.author.id],
+                        cfg.Config.mod_codes[interaction.user.id],
                         reason]]
         }
         request = cfg.Config.service.spreadsheets().values().append(
@@ -169,63 +191,70 @@ class Moderation(Cog):
             valueInputOption='RAW', insertDataOption='OVERWRITE',
             body=r_body)
         response = request.execute()
-        await ctx.send("Punishment successfully recorded. ")
+        await respond(interaction, "Punishment successfully recorded. ")
 
         if user.dm_channel is None:
             await user.create_dm()
         await user.dm_channel.send(embed=warn_embed)
-        await ctx.send("DM successfully sent.")
+        await respond(interaction, "DM successfully sent.")
 
-    @commands.command()
-    @commands.check(is_mod)
-    async def netban(self, ctx, user: int, *, reason):
-        if user in cfg.Config.mod_codes:
-            await ctx.send("Can't network ban a mod!")
+    @app_commands.command(name='netban', description='Bans a user ID from all ISODN servers')
+    @app_commands.check(is_mod)
+    @app_commands.guild_only()
+    @app_commands.describe(user_id='Discord user ID to ban', reason='Reason for the ban')
+    async def netban(self, interaction: discord.Interaction, user_id: int, reason: str):
+        if user_id in cfg.Config.mod_codes:
+            await respond(interaction, "Can't network ban a mod!", ephemeral=True)
             return
 
         try:
-            await self.bot.get_user(user).send(embed=get_punishment_embed(ctx, 'Network Ban', reason))
-        except:
-            await ctx.send("Can't DM to them. Maybe they aren't in any ISODN servers? ")
+            user = await self.bot.fetch_user(user_id)
+            await user.send(embed=get_punishment_embed(interaction, 'Network Ban', reason))
+        except discord.HTTPException:
+            await respond(interaction, "Can't DM to them. Maybe they aren't in any ISODN servers? ")
 
         for server in cfg.Config.server_codes:
             try:
-                await self.bot.get_guild(server).ban(discord.Object(user), reason=reason)
-                await ctx.send("Banned {} in {}. ".format(user, cfg.Config.server_codes[server]))
-            except:
-                await ctx.send("Error banning {} in {}. Does the bot have the required permissions? ".format(user,
-                                                                                                             cfg.Config.server_codes[
-                                                                                                                 server]))
-        await self.record_punishment(ctx, user, 'Network Ban', reason)
+                await self.bot.get_guild(server).ban(discord.Object(user_id), reason=reason)
+                await respond(interaction, "Banned {} in {}. ".format(user_id, cfg.Config.server_codes[server]))
+            except Exception:
+                await respond(interaction, "Error banning {} in {}. Does the bot have the required permissions? ".format(user_id,
+                                                                                                                         cfg.Config.server_codes[
+                                                                                                                             server]))
+        await self.record_punishment(interaction, user_id, 'Network Ban', reason)
 
-    @commands.command()
-    @commands.check(is_mod)
-    async def unnetban(self, ctx, userid: int, *, reason):
+    @app_commands.command(name='unnetban', description='Unbans a user ID from all ISODN servers')
+    @app_commands.check(is_mod)
+    @app_commands.guild_only()
+    @app_commands.describe(user_id='Discord user ID to unban', reason='Reason for the unban')
+    async def unnetban(self, interaction: discord.Interaction, user_id: int, reason: str):
         for server in cfg.Config.server_codes:
             try:
-                await self.bot.get_guild(server).unban(discord.Object(userid), reason=reason)
-                await ctx.send("Unbanned {} from {}.".format(userid, cfg.Config.server_codes[server]))
-            except:
-                await ctx.send(
-                    "Couldn't unban {} from {}. Is the bot lacking permissions or are they not banned?".format(userid,
-                                                                                                               cfg.Config.server_codes[
-                                                                                                                   server]))
+                await self.bot.get_guild(server).unban(discord.Object(user_id), reason=reason)
+                await respond(interaction, "Unbanned {} from {}.".format(user_id, cfg.Config.server_codes[server]))
+            except Exception:
+                await respond(interaction,
+                              "Couldn't unban {} from {}. Is the bot lacking permissions or are they not banned?".format(user_id,
+                                                                                                                       cfg.Config.server_codes[
+                                                                                                                           server]))
 
-    @commands.command()
-    @commands.check(is_mod)
-    async def purge_user(self, ctx, userid: int, hours: int = 24):
-        for channel in ctx.guild.text_channels:
+    @app_commands.command(name='purge_user', description="Purges a user's messages from all channels in this server")
+    @app_commands.check(is_mod)
+    @app_commands.guild_only()
+    @app_commands.describe(user_id='Discord user ID whose messages to purge',
+                           hours='How far back to purge, in hours')
+    async def purge_user(self, interaction: discord.Interaction, user_id: int, hours: int = 24):
+        for channel in interaction.guild.text_channels:
             try:
                 def check(m):
-                    print(m.author.id, userid, m.author.id == userid)
-                    return m.author.id == userid
-                await channel.purge(limit = 500, check = check, after = datetime.utcnow() - timedelta(hours = hours))
-            except:
+                    return m.author.id == user_id
+                await channel.purge(limit=500, check=check, after=datetime.now(timezone.utc) - timedelta(hours=hours))
+            except Exception:
                 try:
-                    await ctx.send(f'Failed to purge in {channel.mention}. Does the bot have the required permissions? ')
-                except:
+                    await respond(interaction, f'Failed to purge in {channel.mention}. Does the bot have the required permissions? ')
+                except Exception:
                     pass
-        await ctx.send(f'Purged {userid}\'s messages in this server. ')
+        await respond(interaction, f'Purged {user_id}\'s messages in this server. ')
 
     @Cog.listener()
     async def on_message(self, message):
@@ -237,12 +266,14 @@ class Moderation(Cog):
                 await message.add_reaction('👎')
 
         # Check pings
+        # NOTE: dormant unless the (privileged) message_content intent is enabled,
+        # because message content and mentions are not available without it
         ping_limit = 5
         if len(message.mentions) >= ping_limit:
             muted = get(message.guild.roles, name="muted")
             helper_team = get(message.guild.roles, name="Helper Team")
             trusted_bot = get(message.guild.roles, name="trusted bot")
-            
+
             allow_mass_ping = False
 
             if helper_team != None and helper_team in message.author.roles:

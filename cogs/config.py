@@ -1,3 +1,5 @@
+import discord
+from discord import app_commands
 from discord.ext import commands
 import bidict
 
@@ -43,12 +45,13 @@ class Config(Cog):
             Config.server_codes[int(i[0])] = i[1]
         print(Config.server_codes)
 
-    @commands.command(aliases=['cfl'])
-    async def config_load(self, ctx, name):
+    @app_commands.command(description='Prints the value of a config entry by name')
+    @app_commands.describe(name='Name of the config entry to look up')
+    async def config_load(self, interaction: discord.Interaction, name: str):
         if name not in Config.config:
-            await ctx.send("No config with that name found!")
+            await interaction.response.send_message("No config with that name found!", ephemeral=True)
         else:
-            await ctx.send(str(Config.config[name]))
+            await interaction.response.send_message(str(Config.config[name]))
 
 
 
