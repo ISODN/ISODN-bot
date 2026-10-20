@@ -5,7 +5,7 @@ import bidict
 
 Cog = commands.Cog
 from discord.ext import commands
-from ruamel import yaml
+from ruamel.yaml import YAML
 import os
 from apiclient import discovery
 from google.oauth2 import service_account
@@ -23,8 +23,9 @@ class Config(Cog):
     service = discovery.build('sheets', 'v4', credentials=credentials)
 
     def __init__(self, bot):
+        yaml = YAML(type='safe', pure=True)
         with open('config/config.yml') as cfgfile:
-            Config.config = yaml.safe_load(cfgfile)
+            Config.config = yaml.load(cfgfile)
         self.bot = bot
 
         # Load mod codes

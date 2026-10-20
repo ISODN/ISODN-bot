@@ -4,17 +4,18 @@ import traceback
 import discord
 from discord import app_commands
 from discord.ext import commands
-from ruamel import yaml
+from ruamel.yaml import YAML
 
+yaml = YAML(typ='safe', pure=True)
 cfgfile = open("config/config.yml")
-config = yaml.safe_load(cfgfile)
+config = yaml.load(cfgfile)
 
 class ISODNBot(commands.Bot):
     def __init__(self, prefix):
         intents = discord.Intents.default()
         super().__init__(prefix, intents=intents)
         self.config = config
-        self.secret_config = yaml.safe_load(open('config/secret_config.yml'))
+        self.secret_config = yaml.load(open('config/secret_config.yml'))
         logging.basicConfig(level=logging.INFO, format='[%(name)s %(levelname)s] %(message)s')
         self.logger = logging.getLogger('bot')
         try:
