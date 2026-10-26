@@ -37,6 +37,27 @@ def is_mod(interaction: discord.Interaction) -> bool:
     return interaction.user.id in cfg.Config.mod_codes
 
 
+class SnowflakeID(app_commands.Transformer):
+    """Parses a Discord snowflake ID given as text.
+
+    Snowflake IDs exceed the 53-bit range of slash command integer options,
+    so they must be taken as text and parsed here. A failed parse raises
+    ValueError, which discord.py wraps into app_commands.TransformerError
+    (handled centrally in on_tree_error).
+    """
+
+    @property
+    def type(self) -> discord.AppCommandOptionType:
+        return discord.AppCommandOptionType.string
+
+    async def transform(self, interaction: discord.Interaction, value: str) -> int:
+        return int(value)
+
+
+# use as: user_id: UserID  ->  string option, parsed to int before the command runs
+UserID = app_commands.Transform[int, SnowflakeID]
+
+
 class Moderation(Cog):
     SPREADSHEET_ID = None
 
@@ -78,7 +99,7 @@ class Moderation(Cog):
     @app_commands.command(name='logbyuser', description='Lists all punishments logged for a user ID')
     @app_commands.check(is_mod)
     @app_commands.describe(user_id='Discord user ID to look up')
-    async def logbyuser(self, interaction: discord.Interaction, user_id: int):
+    async def logbyuser(self, interaction: discord.Interaction, user_id: UserID):
         result = cfg.Config.service.spreadsheets().values().get(
             spreadsheetId=cfg.Config.config['sheets']['isodn_punishment_log'], range=PUN_RANGE).execute()
         values = result.get('values', [])
@@ -202,7 +223,7 @@ class Moderation(Cog):
     @app_commands.check(is_mod)
     @app_commands.guild_only()
     @app_commands.describe(user_id='Discord user ID to ban', reason='Reason for the ban')
-    async def netban(self, interaction: discord.Interaction, user_id: int, reason: str):
+    async def netban(self, interaction: discord.Interaction, user_id: UserID, reason: str):
         if user_id in cfg.Config.mod_codes:
             await respond(interaction, "Can't network ban a mod!", ephemeral=True)
             return
@@ -227,7 +248,7 @@ class Moderation(Cog):
     @app_commands.check(is_mod)
     @app_commands.guild_only()
     @app_commands.describe(user_id='Discord user ID to unban', reason='Reason for the unban')
-    async def unnetban(self, interaction: discord.Interaction, user_id: int, reason: str):
+    async def unnetban(self, interaction: discord.Interaction, user_id: UserID, reason: str):
         for server in cfg.Config.server_codes:
             try:
                 await self.bot.get_guild(server).unban(discord.Object(user_id), reason=reason)
@@ -243,7 +264,7 @@ class Moderation(Cog):
     @app_commands.guild_only()
     @app_commands.describe(user_id='Discord user ID whose messages to purge',
                            hours='How far back to purge, in hours')
-    async def purge_user(self, interaction: discord.Interaction, user_id: int, hours: int = 24):
+    async def purge_user(self, interaction: discord.Interaction, user_id: UserID, hours: int = 24):
         for channel in interaction.guild.text_channels:
             try:
                 def check(m):

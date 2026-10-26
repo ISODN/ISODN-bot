@@ -93,6 +93,10 @@ class ISODNBot(commands.Bot):
             error: app_commands.CommandOnCooldown
             await self.respond(interaction, f'You\'re going too fast! Try again in {error.retry_after:.2f} seconds.')
 
+        elif isinstance(error, app_commands.TransformerError):
+            # raised by the SnowflakeID transformer when a user ID isn't a valid integer
+            await self.respond(interaction, 'That does not look like a valid user ID.')
+
         elif isinstance(error, app_commands.CheckFailure):
             await self.respond(interaction, "You are not authorised to use this command.")
 
